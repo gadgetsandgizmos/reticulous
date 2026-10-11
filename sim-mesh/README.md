@@ -121,3 +121,14 @@ station, its `/fixed` tree, this directory's `driver.py`, the shared
 libraries beyond libc and libstdc++ (zlib, libbsd, libmd) under `lib/`, and a
 node.yaml naming the firmware `reticulous-<catalogue>-sx1262_<arch>_<stamp>`.
 `sim firmware add` takes it as it is.
+
+## What the driver reads
+
+A traffic report counts what arrived apart from what was proven, so the
+driver reads both off the station's console. A send names the firmware's own
+id and the LXMF message id (`send mid=o_… message_id=<64 hex>`); a proven
+message ends `DIRECT delivered`, `DIRECT resource delivered` or
+`OPPORTUNISTIC delivered mid=o_…`; a stored inbound one is `recv
+mid=<message id> from=<sender>`. sim-mesh matches the sender's message id to
+the recipient's, so a message whose proof was lost on the way back still
+counts as delivered.

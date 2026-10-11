@@ -28,8 +28,12 @@ Its verbs, in its CLI:
 
 What becomes of a message it reads from the station's console: every log line
 that names a message's own id (`mid=o_…`) is reported against sim-mesh's,
-`DIRECT delivered` and `DIRECT resource delivered` as `delivered`, a failure
-as `failed`.
+`DIRECT delivered`, `DIRECT resource delivered` and `OPPORTUNISTIC delivered`
+as `delivered` (proven to the sender), a failure as `failed`. A send names
+the LXMF message id too (`message_id=`), reported once as
+`lxmf.message.id`; a stored inbound message (`recv mid=<message id>
+from=<sender>`) is `lxmf.message.received`, so what arrived is counted apart
+from what was proven.
 """
 
 import asyncio
@@ -48,6 +52,10 @@ CREATED = re.compile(r"created \".*\" at slot \d+ \(([0-9a-f]{32})\)")
 QUEUED = re.compile(r"queued (\S+)")
 PATH_KEYS = ("dest", "next_hop", "iface", "hops")
 MID = re.compile(r"mid=(o_\S+)")
+# A send names the LXMF message id beside the firmware's own; a stored inbound
+# message is `recv mid=<message id> from=<sender>`.
+MESSAGE_ID = re.compile(r"\bmessage_id=([0-9a-f]{64})")
+RECV = re.compile(r"\] id \d+: recv mid=([0-9a-f]{64}) from=([0-9a-f]+)")
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 STAMP = re.compile(r"^\w{3} +\d+ \d\d:\d\d:\d\d\.\d{3} ")
 # The radio's figures as its CLI takes them, in the order they are set.
@@ -261,9 +269,16 @@ class Reticulous(ReticulumDriver):
 
     def console_line(self, station, line):
         line = ANSI.sub("", line)
+        got = RECV.search(line)
+        if got:
+            self.lxmf_received(station, got.group(1), got.group(2))
+            return
         found = MID.search(line)
         if not found:
             return
+        message_id = MESSAGE_ID.search(line)
+        if message_id:
+            self.lxmf_message_id(station, found.group(1), message_id.group(1))
         said = (line[STAMP.match(line).end():] if STAMP.match(line) else line).strip()
         if "delivered mid=" in line:
             self.lxmf_native(station, found.group(1), "delivered")
