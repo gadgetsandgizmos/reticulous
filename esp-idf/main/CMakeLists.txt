@@ -43,3 +43,21 @@ idf_component_register(
         # ESP-IDF / managed components stay static — not gateable straddles.
         ${_IDF_REQ}
 )
+
+# RadioLib is surfaced in idf_component.yml for iface-lora, so it is in every
+# build, the board-less `generic` included, whether iface-lora is staged or
+# not. Its own ESP-IDF HAL is never used (iface-lora hands RadioLib one of its
+# own, and takes this file out where it is staged) and refuses a FreeRTOS tick
+# below 1000 Hz, which this build keeps at 100: so it leaves the build here
+# too, for the builds with no radio.
+if(TARGET __idf_jgromes__radiolib)
+    get_target_property(_rl_srcs __idf_jgromes__radiolib SOURCES)
+    set(_rl_keep "")
+    foreach(_rl_f IN LISTS _rl_srcs)
+        get_filename_component(_rl_n "${_rl_f}" NAME)
+        if(NOT _rl_n STREQUAL "EspHal.cpp")
+            list(APPEND _rl_keep "${_rl_f}")
+        endif()
+    endforeach()
+    set_target_properties(__idf_jgromes__radiolib PROPERTIES SOURCES "${_rl_keep}")
+endif()
