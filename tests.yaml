@@ -1,4 +1,5 @@
 generated: [web-interface/package.json, web-interface/package-lock.json]
+not_firmware: [tests/**, tests.yaml]
 
 test_configs:
   catalogue:
