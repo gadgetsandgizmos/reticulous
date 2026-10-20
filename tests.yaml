@@ -1,0 +1,30 @@
+test_configs:
+  base: >-
+    reticulous/reticulous --with spangap/hw-linux
+    -x reticulous/rnsh -x reticulous/iface-auto -x reticulous/iface-ble
+    -x reticulous/rnode-ble -x reticulous/nomad -x reticulous/maps
+    -x spangap/viewer -x spangap/acme -x spangap/duckdns -x spangap/sshd
+    -x spangap/upnp -x spangap/wg
+  variants:
+    supe:
+    no-supe: --kconfig CONFIG_LORA_NO_SUPE=y
+
+tests:
+  - id: build-full   #full image
+    type: host
+    tier: nightly
+    run: spangap build reticulous/reticulous --with spangap/hw-heltecv4
+    tools: [docker, spangap]
+
+  - id: mesh-smoke
+    type: sim
+    tier: smoke
+    run: >-
+      cp tests/sim/three-leaves-two-relays.yaml "$MESH_WORKSPACE/sim-mesh/testbed/nodesets/" &&
+      "$MESH_WORKSPACE/sim-mesh/sim" run tests/sim/mesh-smoke-test.py
+      --geodata plain-27 --nodeset three-leaves-two-relays --no-browser
+      --set firmware="$TEST_FIRMWARE"
+    tools: [docker]
+    configs: all
+    straddle_deps: [sim-mesh/sim-mesh]
+    timeout: 180
