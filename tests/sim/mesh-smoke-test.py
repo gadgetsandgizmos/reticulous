@@ -43,6 +43,7 @@ POLL_S = 10       # seconds of T between two looks, in stages 3 and 4
 RELAY_S = 300     # seconds of T an announce is given to cross both relays: a relay
                   # spends 2% of its airtime forwarding announces, nearest first
 DELIVER_S = 300   # seconds of T a message is given to be proven to its sender
+SENDS = 2         # messages tried per route: one lost frame is not a failure
 
 RESULT_FILE = "smoke.json"
 STAGES = ("boot", "hear", "relay", "deliver")
@@ -143,20 +144,30 @@ stage(3, "relay", seen == RELAY_HOPS,
       seconds=took, limit=RELAY_S)
 
 # 4 deliver
-sent = {(f, t): node(f).reticulum.lxmf.send(t, "smoke test %s to %s" % (f, t))[f]
-        for f, t in ROUTES}
+def send(route):
+    f, t = route
+    return node(f).reticulum.lxmf.send(t, "smoke test %s to %s" % (f, t))[f]
+
+sent = {route: send(route) for route in ROUTES}
+tries = dict.fromkeys(ROUTES, 1)
 got = {}
 for waited in range(POLL_S, DELIVER_S + 1, POLL_S):
     sim_wait(POLL_S)
     now = messages()
     got = {route: now.get(mid, ("nothing reported", None)) for route, mid in sent.items()}
+    for route, (status, _) in got.items():
+        if status == "failed" and tries[route] < SENDS:
+            sent[route] = send(route)
+            tries[route] += 1
     if all(status == "delivered" for status, _ in got.values()):
         break
 stage(4, "deliver", all(status == "delivered" for status, _ in got.values()),
-      "; ".join("%s -> %s: %s%s" % (f, t, got[f, t][0],
-                                    "" if got[f, t][1] is None else " in %.1f s" % got[f, t][1])
+      "; ".join("%s -> %s: %s%s%s" % (f, t, got[f, t][0],
+                                      "" if got[f, t][1] is None else " in %.1f s" % got[f, t][1],
+                                      "" if tries[f, t] == 1 else " (message %d)" % tries[f, t])
                 for f, t in ROUTES) + " after %d s" % waited,
-      seconds={"%s -> %s" % route: got[route][1] for route in ROUTES}, limit=DELIVER_S)
+      seconds={"%s -> %s" % route: got[route][1] for route in ROUTES},
+      messages={"%s -> %s" % route: tries[route] for route in ROUTES}, limit=DELIVER_S)
 
 sim_stop()
 
