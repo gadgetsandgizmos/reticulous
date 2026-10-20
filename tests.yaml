@@ -1,4 +1,11 @@
+generated: [web-interface/package.json, web-interface/package-lock.json]
+
 test_configs:
+  catalogue:
+    category: reticulum
+    driver: sim-mesh/driver.py
+    virtual_hardware: ESP32-S3
+    virtual_radio: SX1262
   base: >-
     reticulous/reticulous --with spangap/hw-linux
     -x reticulous/rnsh -x reticulous/iface-auto -x reticulous/iface-ble
