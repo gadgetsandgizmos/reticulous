@@ -1,8 +1,8 @@
 generated: [web-interface/package.json, web-interface/package-lock.json]
-not_firmware: [tests/**, tests.yaml]
+test_only: [tests/**, tests.yaml]
 
 test_configs:
-  catalogue:
+  sim_image:
     category: reticulum
     driver: sim-mesh/driver.py
     virtual_hardware: ESP32-S3
@@ -20,7 +20,7 @@ test_configs:
 tests:
   - id: build-full   #full image
     type: host
-    tier: nightly
+    tier: extended
     run: spangap build reticulous/reticulous --with spangap/hw-heltecv4
     tools: [docker, spangap]
 
