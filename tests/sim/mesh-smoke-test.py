@@ -36,6 +36,8 @@ from sim_mesh import library
 
 firmware = script_input("firmware", type=Firmware, category="reticulum",
                         label="Firmware for every node")
+settings = script_input("settings", label="Settings for every node: key=value …, or none",
+                        default="none")
 
 ROUNDS = 3        # announces tried before stage 2 fails: one lost frame is no fault
 ROUND_S = 30      # seconds of T each of those rounds is given
@@ -110,8 +112,25 @@ nodes().on_first_boot(Node.reticulum.lxmf.create())
 # 1 boot
 wanted = sorted(nodes().facts())
 up = sorted(nodes().up(timeout=120))
-stage(1, "boot", up == wanted, "%d of %d up" % (len(up), len(wanted)),
-      up=len(up), wanted=len(wanted))
+pairs = [p.split("=", 1) for p in settings.split() if settings != "none"]
+took = len(up)
+if pairs:
+    nodes().exec(["set %s %s" % (k, v) for k, v in pairs])
+    shown = nodes().exec(["show %s" % k for k, _ in pairs])
+    took = sum(all("%s=%s" % (k, v) in reply.replace(" ", "") for k, v in pairs)
+               for reply in shown.values())
+    if any(k.endswith("SUPE.enable") and v == "1" for k, v in pairs):
+        for _ in range(12):
+            supe = nodes().exec("lora 0 supe")
+            running = sum("SUPE: on" in reply for reply in supe.values())
+            if running == len(up):
+                break
+            sim_wait(5)
+        took = min(took, running)
+stage(1, "boot", up == wanted and took == len(up),
+      "%d of %d up%s" % (len(up), len(wanted),
+                         "; settings on %d of %d" % (took, len(up)) if pairs else ""),
+      up=len(up), wanted=len(wanted), settings_on=took)
 
 # 2 hear
 a, b = ROUTES[0]

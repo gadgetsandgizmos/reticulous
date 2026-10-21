@@ -14,8 +14,11 @@ test_configs:
     -x spangap/viewer -x spangap/acme -x spangap/duckdns -x spangap/sshd
     -x spangap/upnp -x spangap/wg
   variants:
-    supe:
     no-supe: --kconfig CONFIG_LORA_NO_SUPE=y
+    supe:
+      settings: {s.lora.0.SUPE.enable: 1}
+    supe-off:
+      tier: extended
 
 tests:
   - id: build-full   #full image
@@ -32,6 +35,7 @@ tests:
       "$MESH_WORKSPACE/sim-mesh/sim" run tests/sim/mesh-smoke-test.py
       --geodata plain-27 --nodeset three-leaves-two-relays --no-browser
       --set firmware="$TEST_FIRMWARE"
+      --set settings="${TEST_SETTINGS:-none}"
     tools: [docker]
     configs: all
     straddle_deps: [sim-mesh/sim-mesh]
