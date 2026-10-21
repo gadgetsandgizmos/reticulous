@@ -12,9 +12,9 @@ Stages, stopping at the first that fails:
             path table has an entry for leaf-c at two hops (through relay-2)
             and leaf-a's has one at three hops (through relay-1 and
             relay-2), which means both relays forwarded the announce
-  4  deliver  one message is sent along each route: leaf-a to leaf-b
-            (direct), leaf-b to leaf-c (one relay), leaf-a to leaf-c (two
-            relays); each sender is told its message was delivered, which
+  4  deliver  one message is sent along each route in turn: leaf-a to
+            leaf-b (direct), leaf-b to leaf-c (one relay), leaf-a to leaf-c
+            (two relays); each sender is told its message was delivered, which
             means the recipient's proof came back to it
 
 Made for the nodeset `three-leaves-two-relays` (beside this file) on the geodata
@@ -162,31 +162,28 @@ stage(3, "relay", seen == RELAY_HOPS,
       % (" and ".join(str(n) for n in RELAY_HOPS.values()), waited),
       seconds=took, limit=RELAY_S)
 
-# 4 deliver
-def send(route):
+# 4 deliver: one route at a time, so the routes don't collide at the relays
+def deliver(route):
     f, t = route
-    return node(f).reticulum.lxmf.send(t, "smoke test %s to %s" % (f, t))[f]
+    mid, tries, status, took = None, 0, "nothing reported", None
+    for _ in range(0, DELIVER_S, POLL_S):
+        if mid is None or (status == "failed" and tries < SENDS):
+            mid = node(f).reticulum.lxmf.send(t, "smoke test %s to %s" % (f, t))[f]
+            tries += 1
+        sim_wait(POLL_S)
+        status, took = messages().get(mid, ("nothing reported", None))
+        if status == "delivered":
+            break
+    return status, took, tries
 
-sent = {route: send(route) for route in ROUTES}
-tries = dict.fromkeys(ROUTES, 1)
-got = {}
-for waited in range(POLL_S, DELIVER_S + 1, POLL_S):
-    sim_wait(POLL_S)
-    now = messages()
-    got = {route: now.get(mid, ("nothing reported", None)) for route, mid in sent.items()}
-    for route, (status, _) in got.items():
-        if status == "failed" and tries[route] < SENDS:
-            sent[route] = send(route)
-            tries[route] += 1
-    if all(status == "delivered" for status, _ in got.values()):
-        break
-stage(4, "deliver", all(status == "delivered" for status, _ in got.values()),
+got = {route: deliver(route) for route in ROUTES}
+stage(4, "deliver", all(status == "delivered" for status, _, _ in got.values()),
       "; ".join("%s -> %s: %s%s%s" % (f, t, got[f, t][0],
                                       "" if got[f, t][1] is None else " in %.1f s" % got[f, t][1],
-                                      "" if tries[f, t] == 1 else " (message %d)" % tries[f, t])
-                for f, t in ROUTES) + " after %d s" % waited,
+                                      "" if got[f, t][2] == 1 else " (message %d)" % got[f, t][2])
+                for f, t in ROUTES),
       seconds={"%s -> %s" % route: got[route][1] for route in ROUTES},
-      messages={"%s -> %s" % route: tries[route] for route in ROUTES}, limit=DELIVER_S)
+      messages={"%s -> %s" % route: got[route][2] for route in ROUTES}, limit=DELIVER_S)
 
 sim_stop()
 
