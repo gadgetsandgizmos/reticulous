@@ -17,6 +17,9 @@ test_configs:
     no-supe: --kconfig CONFIG_LORA_NO_SUPE=y
     supe:
       settings: {s.lora.0.SUPE.enable: 1}
+    supe-afa1:
+      settings: {s.lora.0.SUPE.enable: 1, s.lora.0.SUPE.afa: 1}
+      tier: extended
     supe-off:
       tier: extended
 
@@ -40,3 +43,24 @@ tests:
     configs: all
     straddle_deps: [sim-mesh/sim-mesh]
     timeout: 180
+
+  - id: berlin-traffic
+    type: sim
+    tier: extended
+    run: |
+      name="mesh-test-berlin-$(date +%s)"
+      settings=$(printf '%s\n' $TEST_SETTINGS | sed -n 's/^\([^=]*\)=\(.*\)$/set \1 \2/p' | paste -sd ';')
+      "$MESH_WORKSPACE/sim-mesh/sim" run tests/sim/berlin-traffic.py \
+        --geodata berlin-centre --nodeset berlin-50 --name "$name" --no-browser \
+        --set firmware="$TEST_FIRMWARE" --set repeater_firmware="$TEST_FIRMWARE" \
+        --set reticulous_settings="${settings:-none}"
+      rc=$?
+      cp "$MESH_WORKSPACE/sim-mesh/testbed/runs/$name/results.json" "$TEST_OUT/" 2>/dev/null
+      exit $rc
+    tools: [docker]
+    configs: all
+    straddle_deps: [sim-mesh/sim-mesh]
+    timeout: 2400
+    expect:
+      delivery.delivered_ratio: ">= 0.90"
+      delivery.proven_ratio: ">= 0.85"
