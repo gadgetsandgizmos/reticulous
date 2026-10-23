@@ -70,7 +70,9 @@ results = {
     "delivery.delivered_ratio": d["delivered"] / sent if sent else 0.0,
     "delivery.proven_ratio": d["proven"] / sent if sent else 0.0,
     **quantiles("latency.delivered_s", d.get("latency_s")),
-    **quantiles("latency.proven_s", d.get("proof_latency_s")),
+    # TODO ldub: proof latency looks wrong (p50 ~100 s in every variant while
+    # delivery p50 is 4-6 s); left out until we check how delivery.py times proofs.
+    # **quantiles("latency.proven_s", d.get("proof_latency_s")),
     "airtime.frames": a.get("frames"),
     "airtime.window_s": a.get("window_s"),
     "airtime.announce_s": a.get("announce_s"),
