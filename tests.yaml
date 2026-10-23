@@ -48,7 +48,7 @@ tests:
     type: sim
     tier: extended
     run: |
-      name="mesh-test-berlin-$(date +%s)"
+      name="device-test-berlin-$(date +%s)"
       settings=$(printf '%s\n' $TEST_SETTINGS | sed -n 's/^\([^=]*\)=\(.*\)$/set \1 \2/p' | paste -sd ';')
       "$MESH_WORKSPACE/sim-mesh/sim" run tests/sim/berlin-traffic.py \
         --geodata berlin-centre --nodeset berlin-50 --name "$name" --no-browser \
